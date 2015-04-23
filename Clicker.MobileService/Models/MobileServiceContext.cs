@@ -26,9 +26,8 @@ namespace Clicker.MobileService.Models
         public MobileServiceContext()
             : base(connectionStringName)
         {
+            this.Configuration.AutoDetectChangesEnabled = true;
         }
-
-        public DbSet<TodoItem> TodoItems { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -41,7 +40,10 @@ namespace Clicker.MobileService.Models
             modelBuilder.Conventions.Add(
                 new AttributeToColumnAnnotationConvention<TableColumnAttribute, string>(
                     "ServiceTableColumn", (property, attributes) => attributes.Single().ColumnType.ToString()));
+
         }
+
+        public System.Data.Entity.DbSet<Clicker.MobileService.DataObjects.Player> Players { get; set; }
     }
 
 }

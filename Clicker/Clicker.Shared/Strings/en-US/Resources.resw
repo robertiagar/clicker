@@ -257,10 +257,10 @@
     <value>application name</value>
   </data>
   <data name="HubSection1" xml:space="preserve">
-    <value>SECTION 1</value>
+    <value>Clickies</value>
   </data>
   <data name="HubSection2" xml:space="preserve">
-    <value>SECTION 2</value>
+    <value>Previous Day Rank</value>
   </data>
   <data name="HubSection3" xml:space="preserve">
     <value>SECTION 3</value>

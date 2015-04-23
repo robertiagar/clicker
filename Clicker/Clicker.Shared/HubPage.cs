@@ -14,6 +14,8 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 using Clicker.Data;
 using Clicker.Common;
+using Microsoft.Practices.ServiceLocation;
+using Clicker.ViewModel;
 
 // The Universal Hub Application project template is documented at http://go.microsoft.com/fwlink/?LinkID=391955
 
@@ -22,10 +24,15 @@ namespace Clicker
     /// <summary>
     /// A page that displays a grouped collection of items.
     /// </summary>
+    /// 
+#if WINDOWS_PHONE_APP
+    public sealed partial class HubPage : Page, IWebAuthenticationContinuable
+#else
     public sealed partial class HubPage : Page
+#endif
     {
         private NavigationHelper navigationHelper;
-        private ObservableDictionary defaultViewModel = new ObservableDictionary();
+        private MainViewModel defaultViewModel;
 
         /// <summary>
         /// Gets the NavigationHelper used to aid in navigation and process lifetime management.
@@ -38,9 +45,10 @@ namespace Clicker
         /// <summary>
         /// Gets the DefaultViewModel. This can be changed to a strongly typed view model.
         /// </summary>
-        public ObservableDictionary DefaultViewModel
+        public MainViewModel DefaultViewModel
         {
             get { return this.defaultViewModel; }
+            set { this.defaultViewModel = value; }
         }
 
         public HubPage()
@@ -48,6 +56,12 @@ namespace Clicker
             this.InitializeComponent();
             this.navigationHelper = new NavigationHelper(this);
             this.navigationHelper.LoadState += this.NavigationHelper_LoadState;
+            this.navigationHelper.SaveState += this.NavigationHelper_SaveState;
+        }
+
+        private async void NavigationHelper_SaveState(object sender, SaveStateEventArgs e)
+        {
+            await DefaultViewModel.SaveAsync();
         }
 
         /// <summary>
@@ -64,8 +78,10 @@ namespace Clicker
         private async void NavigationHelper_LoadState(object sender, LoadStateEventArgs e)
         {
             // TODO: Create an appropriate data model for your problem domain to replace the sample data
-            var sampleDataGroup = await SampleDataSource.GetGroupAsync("Group-4");
-            this.DefaultViewModel["Section3Items"] = sampleDataGroup;
+            //var sampleDataGroup = await SampleDataSource.GetGroupAsync("Group-4");
+            //this.DefaultViewModel["Section3Items"] = sampleDataGroup;
+            this.DefaultViewModel = ServiceLocator.Current.GetInstance<MainViewModel>();
+            await defaultViewModel.LoginAsync();
         }
 
         /// <summary>
@@ -115,5 +131,12 @@ namespace Clicker
         }
 
         #endregion
+
+#if WINDOWS_PHONE_APP
+        public void ContinueWebAuthentication(Windows.ApplicationModel.Activation.WebAuthenticationBrokerContinuationEventArgs args)
+        {
+            this.defaultViewModel.ContinueWithAuthentication(args);
+        }
+#endif
     }
 }
