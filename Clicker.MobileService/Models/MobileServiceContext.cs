@@ -28,8 +28,6 @@ namespace Clicker.MobileService.Models
         {
         }
 
-        public DbSet<TodoItem> TodoItems { get; set; }
-
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             string schema = ServiceSettingsDictionary.GetSchemaName();
@@ -42,6 +40,8 @@ namespace Clicker.MobileService.Models
                 new AttributeToColumnAnnotationConvention<TableColumnAttribute, string>(
                     "ServiceTableColumn", (property, attributes) => attributes.Single().ColumnType.ToString()));
         }
+
+        public System.Data.Entity.DbSet<Clicker.MobileService.DataObjects.Player> Players { get; set; }
     }
 
 }

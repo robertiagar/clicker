@@ -14,6 +14,8 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
 using Clicker.Data;
 using Clicker.Common;
+using Microsoft.Practices.ServiceLocation;
+using Clicker.ViewModel;
 
 // The Universal Hub Application project template is documented at http://go.microsoft.com/fwlink/?LinkID=391955
 
@@ -25,7 +27,7 @@ namespace Clicker
     public sealed partial class HubPage : Page
     {
         private NavigationHelper navigationHelper;
-        private ObservableDictionary defaultViewModel = new ObservableDictionary();
+        private MainViewModel defaultViewModel;
 
         /// <summary>
         /// Gets the NavigationHelper used to aid in navigation and process lifetime management.
@@ -38,9 +40,10 @@ namespace Clicker
         /// <summary>
         /// Gets the DefaultViewModel. This can be changed to a strongly typed view model.
         /// </summary>
-        public ObservableDictionary DefaultViewModel
+        public MainViewModel DefaultViewModel
         {
             get { return this.defaultViewModel; }
+            set { this.defaultViewModel = value; }
         }
 
         public HubPage()
@@ -64,8 +67,10 @@ namespace Clicker
         private async void NavigationHelper_LoadState(object sender, LoadStateEventArgs e)
         {
             // TODO: Create an appropriate data model for your problem domain to replace the sample data
-            var sampleDataGroup = await SampleDataSource.GetGroupAsync("Group-4");
-            this.DefaultViewModel["Section3Items"] = sampleDataGroup;
+            //var sampleDataGroup = await SampleDataSource.GetGroupAsync("Group-4");
+            //this.DefaultViewModel["Section3Items"] = sampleDataGroup;
+            this.DefaultViewModel = ServiceLocator.Current.GetInstance<MainViewModel>();
+            await defaultViewModel.LoginAsync();
         }
 
         /// <summary>
