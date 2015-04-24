@@ -58,7 +58,7 @@ namespace Clicker.ViewModel
 
         private MobileServiceClient GetLiveServiceClient()
         {
-            return new MobileServiceClient("https://clicker.azure-mobile.net/", "IlcmnQwQrKlylzlhPthEGJIxuhOdgW90");
+            return new MobileServiceClient("https://clicker.azure-mobile.net/", "GBkgDnKwvFxMeXAbNYpAgEuTUBnWZI80");
             //return null;
         }
 

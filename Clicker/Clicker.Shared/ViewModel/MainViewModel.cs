@@ -13,6 +13,11 @@ using GalaSoft.MvvmLight.Command;
 using Windows.UI.Xaml.Controls;
 using System.Net.Http;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Windows.Networking.PushNotifications;
+using Newtonsoft.Json;
+using GalaSoft.MvvmLight.Threading;
+using Windows.Foundation;
 
 namespace Clicker.ViewModel
 {
@@ -20,7 +25,6 @@ namespace Clicker.ViewModel
     {
         private MobileServiceClient _client;
         private MobileServiceUser _user;
-        private bool _loggedIn;
         private bool _submitted;
         private DispatcherTimer _timer;
 
@@ -29,23 +33,34 @@ namespace Clicker.ViewModel
             //Mobile service
             this._client = client;
 
-            //Checking for loging
-            this._loggedIn = false;
+            //flag for checking new values
             this._submitted = true;
 
             //timer
             this._timer = new DispatcherTimer();
-            _timer.Interval = new TimeSpan(0, 0, 2);
+            _timer.Interval = new TimeSpan(0, 0, 0, 0, 500);
             _timer.Tick += TimerTick;
             _timer.Start();
+
+            this._players = new ObservableCollection<Player>();
 
             //Commands
             this.ClickCommand = new RelayCommand(() => Click());
             this.LogoutCommand = new RelayCommand(() => Logout());
+            this.UpdateNameCommand = new RelayCommand(async () => await UpdateNameAsync());
+            this.LoginCommand = new RelayCommand(async () => await LoginAsync());
+            this.Working = false;
+        }
+
+        private async Task UpdateNameAsync()
+        {
+            await WorkingAsync(SaveAsync());
         }
 
         public ICommand ClickCommand { get; private set; }
         public ICommand LogoutCommand { get; private set; }
+        public ICommand UpdateNameCommand { get; private set; }
+        public ICommand LoginCommand { get; private set; }
 
         private void Click()
         {
@@ -73,14 +88,14 @@ namespace Clicker.ViewModel
             {
                 //stop timer
                 _timer.Stop();
-                await _client.GetTable<Player>().UpdateAsync(Player);
+                await WorkingAsync(SaveAsync());
                 _submitted = true; //no need send new values
             }
         }
 
         private async Task GetUserAsync()
         {
-            var players = await _client.GetTable<Player>().ToCollectionAsync();
+            var players = await WorkingAsync(_client.GetTable<Player>().ToCollectionAsync());
             var player = players.Where(pl => pl.ProviderId == _client.CurrentUser.UserId).SingleOrDefault();
             if (player != null)
             {
@@ -93,19 +108,23 @@ namespace Clicker.ViewModel
                     ProviderId = _client.CurrentUser.UserId,
                     Clicks = 0,
                 };
-                await _client.GetTable<Player>().InsertAsync(Player);
+                await WorkingAsync(_client.GetTable<Player>().InsertAsync(Player));
             }
         }
 
         private async Task GetUsersAsync()
         {
-            var players = await _client.InvokeApiAsync<IEnumerable<Player>>("players", HttpMethod.Get, null);
+            var players = await WorkingAsync(_client.InvokeApiAsync<IEnumerable<Player>>("players", HttpMethod.Get, null));
+            Players.Clear();
+            foreach (var player in players.OrderBy(x => x.Rank))
+            {
+                Players.Add(player);
+            }
         }
 
         public async Task LoginAsync()
         {
-            string message;
-            string provider = MobileServiceAuthenticationProvider.MicrosoftAccount.ToString();
+            string provider = MobileServiceAuthenticationProvider.Twitter.ToString();
             // Use the PasswordVault to securely store and access credentials.
             PasswordVault vault = new PasswordVault();
             PasswordCredential credential = null;
@@ -119,7 +138,9 @@ namespace Clicker.ViewModel
                 }
                 catch (Exception)
                 {
-                    // When there is no matching resource an error occurs, which we ignore.
+#if WINDOWS_PHONE_APP
+                    return;
+#endif
                 }
 
                 if (credential != null)
@@ -135,7 +156,7 @@ namespace Clicker.ViewModel
                     try
                     {
                         // Try to return an item now to determine if the cached credential has expired.
-                        await _client.GetTable<Player>().Take(1).ToListAsync();
+                        await WorkingAsync(_client.GetTable<Player>().Take(1).ToListAsync());
                     }
                     catch (MobileServiceInvalidOperationException ex)
                     {
@@ -153,7 +174,7 @@ namespace Clicker.ViewModel
                     try
                     {
                         // Login with the identity provider.
-                        _user = await _client.LoginAsync(provider, true);
+                        _user = await WorkingAsync(_client.LoginAsync(provider, true));
 
                         // Create and store the user credentials.
                         credential = new PasswordCredential(provider,
@@ -161,19 +182,56 @@ namespace Clicker.ViewModel
 
                         vault.Add(credential);
                     }
-                    catch (MobileServiceInvalidOperationException ex)
+                    catch (MobileServiceInvalidOperationException)
                     {
-                        message = "You must log in. Login Required";
+                        //message = "You must log in. Login Required";
                     }
                 }
                 //message = string.Format("You are now logged in - {0}", _user.UserId);
                 //var dialog = new MessageDialog(message);
                 //dialog.Commands.Add(new UICommand("OK"));
                 //await dialog.ShowAsync();
-                _loggedIn = true;
-                await GetUserAsync();
-                await GetUsersAsync();
+                await WorkingAsync( GetUserAsync());
+                await WorkingAsync( GetUsersAsync());
+                await WorkingAsync( UploadChannel());
             }
+        }
+
+        public async Task UploadChannel()
+        {
+            var channel = await PushNotificationChannelManager.CreatePushNotificationChannelForApplicationAsync();
+            try
+            {
+                await WorkingAsync(_client.GetPush().RegisterNativeAsync(channel.Uri));
+                channel.PushNotificationReceived += PushNotificationReceived;
+            }
+            catch (Exception exception)
+            {
+                HandleRegisterException(exception);
+            }
+        }
+
+        private async void PushNotificationReceived(PushNotificationChannel sender, PushNotificationReceivedEventArgs args)
+        {
+            if (args.NotificationType == PushNotificationType.Raw)
+            {
+                var players = JsonConvert.DeserializeObject<IEnumerable<Player>>(args.RawNotification.Content);
+                await DispatcherHelper.RunAsync(() =>
+                {
+                    Players.Clear();
+                    foreach (var player in players.OrderBy(pl => pl.Rank))
+                    {
+                        Players.Add(player);
+                    }
+
+                    Player = players.Where(pl => pl.UserId == Player.UserId).SingleOrDefault();
+                });
+            }
+        }
+
+        private static void HandleRegisterException(Exception exception)
+        {
+            //bad handling
         }
 
         public void Logout()
@@ -199,6 +257,15 @@ namespace Clicker.ViewModel
             }
         }
 
+        public async Task SaveAsync()
+        {
+            if (_client.CurrentUser != null)
+            {
+                await WorkingAsync(_client.GetTable<Player>().UpdateAsync(Player));
+                //await GetUsersAsync();
+            }
+        }
+
         #region Observables
         private Player _Player;
         public Player Player
@@ -210,15 +277,57 @@ namespace Clicker.ViewModel
             }
         }
 
-        private MobileServiceCollection<Player, Player> _Players;
-        public MobileServiceCollection<Player, Player> Players
+        private ObservableCollection<Player> _players;
+        public ObservableCollection<Player> Players { get { return _players; } }
+        #endregion
+
+#if WINDOWS_APP
+        private bool _Working;
+        public bool Working
         {
-            get { return _Players; }
+            get { return _Working; }
             set
             {
-                Set<MobileServiceCollection<Player, Player>>(() => Players, ref _Players, value);
+                Set<bool>(() => Working, ref _Working, value);
             }
         }
-        #endregion
+
+        private async Task WorkingAsync(Task action)
+        {
+            Working = true;
+            await action;
+            Working = false;
+        }
+
+        private async Task<T> WorkingAsync<T>(Task<T> action) where T : class
+        {
+            Working = true;
+            var result = await action;
+            Working = false;
+            return result;
+        }
+
+#else
+        private async Task WorkingAsync(Task action)
+        {
+            var statusBar = Windows.UI.ViewManagement.StatusBar.GetForCurrentView();
+            await statusBar.ProgressIndicator.ShowAsync();
+            await action;
+            await statusBar.ProgressIndicator.HideAsync();
+        }
+
+        private async Task<T> WorkingAsync<T>(Task<T> action) where T : class
+        {
+            var statusBar = Windows.UI.ViewManagement.StatusBar.GetForCurrentView();
+            await statusBar.ProgressIndicator.ShowAsync();
+            var result = await action;
+            await statusBar.ProgressIndicator.HideAsync();
+            return result;
+        }
+        public void ContinueWithAuthentication(Windows.ApplicationModel.Activation.WebAuthenticationBrokerContinuationEventArgs args)
+        {
+            _client.LoginComplete(args);
+        }
+#endif
     }
 }

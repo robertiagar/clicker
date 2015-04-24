@@ -6,6 +6,7 @@ using System.Web.Http;
 using Clicker.MobileService.DataObjects;
 using Clicker.MobileService.Models;
 using Microsoft.WindowsAzure.Mobile.Service;
+using Microsoft.WindowsAzure.Mobile.Service.Security;
 
 namespace Clicker.MobileService
 {
@@ -15,6 +16,8 @@ namespace Clicker.MobileService
         {
             // Use this class to set configuration options for your mobile service
             ConfigOptions options = new ConfigOptions();
+
+            options.PushAuthorization = AuthorizationLevel.User;
 
             // Use this class to set WebAPI configuration options
             HttpConfiguration config = ServiceConfig.Initialize(new ConfigBuilder(options));
@@ -27,7 +30,7 @@ namespace Clicker.MobileService
         }
     }
 
-    public class MobileServiceInitializer : DropCreateDatabaseIfModelChanges<MobileServiceContext>
+    public class MobileServiceInitializer : ClearDatabaseSchemaIfModelChanges<MobileServiceContext>
     {
         protected override void Seed(MobileServiceContext context)
         {

@@ -24,7 +24,12 @@ namespace Clicker
     /// <summary>
     /// A page that displays a grouped collection of items.
     /// </summary>
+    /// 
+#if WINDOWS_PHONE_APP
+    public sealed partial class HubPage : Page, IWebAuthenticationContinuable
+#else
     public sealed partial class HubPage : Page
+#endif
     {
         private NavigationHelper navigationHelper;
         private MainViewModel defaultViewModel;
@@ -51,6 +56,12 @@ namespace Clicker
             this.InitializeComponent();
             this.navigationHelper = new NavigationHelper(this);
             this.navigationHelper.LoadState += this.NavigationHelper_LoadState;
+            this.navigationHelper.SaveState += this.NavigationHelper_SaveState;
+        }
+
+        private async void NavigationHelper_SaveState(object sender, SaveStateEventArgs e)
+        {
+            await DefaultViewModel.SaveAsync();
         }
 
         /// <summary>
@@ -120,5 +131,12 @@ namespace Clicker
         }
 
         #endregion
+
+#if WINDOWS_PHONE_APP
+        public void ContinueWebAuthentication(Windows.ApplicationModel.Activation.WebAuthenticationBrokerContinuationEventArgs args)
+        {
+            this.defaultViewModel.ContinueWithAuthentication(args);
+        }
+#endif
     }
 }

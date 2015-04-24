@@ -9,12 +9,11 @@ namespace Clicker.Model
 {
     public class Player : ObservableObject
     {
+        public string Id { get; set; }
         public string Name { get; set; }
         public string ProviderId { get; set; }
-
         public string UserId { get; set; }
-
-        public string Id { get; set; }
+        public int OldClicks { get; set; }
 
         private int _Clicks;
         public int Clicks

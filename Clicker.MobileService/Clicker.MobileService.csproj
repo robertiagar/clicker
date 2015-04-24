@@ -189,6 +189,8 @@
     <Compile Include="Controllers\PlayerController.cs" />
     <Compile Include="DataObjects\Player.cs" />
     <Compile Include="Models\MobileServiceContext.cs" />
+    <Compile Include="PushRegistrationHandler.cs" />
+    <Compile Include="ScheduledJobs\RankJob.cs" />
     <Compile Include="ScheduledJobs\SampleJob.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
